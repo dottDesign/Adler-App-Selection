@@ -1,0 +1,610 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>App Launcher</title>
+
+  <style>
+    :root{
+      /* ZIP palette */
+      --adler-red: #b91c1c;
+      --adler-charcoal: #111827;
+      --adler-gray-100: #f3f4f6;
+      --adler-gray-200: #e5e7eb;
+      --adler-gray-400: #9ca3af;
+      --adler-gray-600: #4b5563;
+      --radius-lg: 16px;
+      --radius-md: 10px;
+
+      /* UI tokens */
+      --page-bg: var(--adler-gray-100);
+      --surface: #ffffff;
+      --border: var(--adler-gray-200);
+      --text: var(--adler-charcoal);
+      --muted: var(--adler-gray-600);
+      --shadow: 0 14px 34px rgba(17,24,39,.14);
+      --focus: rgba(185,28,28,.22);
+    }
+
+    *{ box-sizing:border-box; }
+
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      background: var(--page-bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    header{
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 28px 20px 10px;
+    }
+
+    h1{
+      margin:0 0 6px;
+      font-size: 26px;
+      letter-spacing: .2px;
+    }
+
+    p{
+      margin:0;
+      color: var(--muted);
+      line-height: 1.45;
+      max-width: 80ch;
+    }
+
+    .controls{
+      max-width: 1120px;
+      margin: 14px auto 0;
+      padding: 0 20px 16px;
+      display:grid;
+      grid-template-columns: 1fr 260px 140px;
+      gap: 12px;
+    }
+
+    .control{
+      display:flex;
+      align-items:center;
+      gap: 10px;
+      padding: 10px 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      box-shadow: 0 1px 0 rgba(17,24,39,.03) inset;
+    }
+
+    .control label{
+      font-size: 12px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    input[type="search"], select{
+      width: 100%;
+      border: 0;
+      outline: none;
+      background: transparent;
+      color: var(--text);
+      font-size: 14px;
+    }
+    input[type="search"]::placeholder{ color: var(--adler-gray-400); }
+
+    .btn{
+      cursor:pointer;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      border-radius: var(--radius-md);
+      padding: 10px 14px;
+      font-size: 14px;
+    }
+    .btn:hover{ border-color: var(--adler-gray-400); }
+    .btn:focus-visible, .control:focus-within{
+      outline: 3px solid var(--focus);
+      outline-offset: 2px;
+    }
+
+    @media (max-width: 980px){
+      .controls{ grid-template-columns: 1fr 1fr; }
+      .controls .btn{ grid-column: 1 / -1; }
+    }
+    @media (max-width: 620px){
+      .controls{ grid-template-columns: 1fr; }
+    }
+
+    main{
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 8px 20px 40px;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 14px;
+    }
+
+    .card-wrap{
+      grid-column: span 4;
+      min-height: 260px;
+      perspective: 1200px;
+    }
+    @media (max-width: 980px){ .card-wrap{ grid-column: span 6; } }
+    @media (max-width: 620px){ .card-wrap{ grid-column: span 12; } }
+
+    .card{
+      position: relative;
+      height: 100%;
+      border-radius: var(--radius-lg);
+      transform-style: preserve-3d;
+      transition: transform 520ms cubic-bezier(.2,.8,.2,1);
+      box-shadow: var(--shadow);
+    }
+    .card[data-flipped="true"]{ transform: rotateY(180deg); }
+
+    .face{
+      position:absolute;
+      inset:0;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      overflow:hidden;
+      backface-visibility: hidden;
+      background: var(--surface);
+      display:flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    /* FRONT */
+    .front{ padding: 0; }
+
+    .front .media{
+      position:relative;
+      height: 100%;
+      width: 100%;
+      background: var(--adler-gray-200);
+    }
+
+    .front img.hero{
+      position:absolute;
+      inset:0;
+      width:100%;
+      height:100%;
+      object-fit: cover;
+      display:block;
+    }
+
+    .front .overlay{
+      position:absolute;
+      inset:0;
+      background: linear-gradient(
+        180deg,
+        rgba(17,24,39,.08) 0%,
+        rgba(17,24,39,.35) 62%,
+        rgba(17,24,39,.62) 100%
+      );
+    }
+
+    /* stronger overlay when using a solid color so text is always readable */
+    .front .overlay.overlay-strong{
+      background: linear-gradient(
+        180deg,
+        rgba(17,24,39,.10) 0%,
+        rgba(17,24,39,.40) 25%,
+        rgba(17,24,39,.72) 100%
+      );
+    }
+
+    .pill-row{
+      position:absolute;
+      top: 12px;
+      left: 12px;
+      right: 12px;
+      display:flex;
+      justify-content: space-between;
+      align-items:center;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .pill{
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.25);
+      background: rgba(255,255,255,.10);
+      color: #fff;
+      max-width: 72%;
+      overflow:hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .status{
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(185,28,28,.45);
+      background: rgba(185,28,28,.18);
+      color: #fff;
+      white-space: nowrap;
+    }
+
+    .front-content{
+      position:absolute;
+      inset:0;
+      padding: 14px;
+      display:flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .title{
+      margin:0;
+      color: #fff;
+      font-size: 18px;
+      letter-spacing: .2px;
+      text-shadow: 0 10px 18px rgba(0,0,0,.35);
+    }
+
+    .desc{
+      margin:0;
+      color: rgba(255,255,255,.88);
+      font-size: 13px;
+      line-height: 1.45;
+      text-shadow: 0 10px 18px rgba(0,0,0,.35);
+    }
+
+    .hint{
+      margin-top: 2px;
+      font-size: 12px;
+      color: rgba(255,255,255,.85);
+      text-shadow: 0 10px 18px rgba(0,0,0,.35);
+    }
+
+    /* BACK */
+    .back{
+      transform: rotateY(180deg);
+      padding: 16px;
+      background: var(--surface);
+    }
+
+    .back h2{
+      margin: 0 0 6px;
+      font-size: 18px;
+    }
+
+    .back p{
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .meta{
+      margin-top: 12px;
+      display:flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .chip{
+      font-size: 12px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--text);
+    }
+
+    .actions{
+      display:flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .link-btn{
+      cursor:pointer;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      text-decoration:none;
+      border-radius: var(--radius-md);
+      padding: 10px 12px;
+      font-size: 13px;
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--text);
+      min-width: 92px;
+    }
+
+    .link-btn:hover{ border-color: var(--adler-gray-400); }
+
+    .link-btn.primary{
+      border-color: var(--adler-red);
+      background: var(--adler-red);
+      color: #fff;
+    }
+    .link-btn.primary:hover{ filter: brightness(.95); }
+
+    .empty{
+      margin-top: 18px;
+      padding: 18px;
+      border: 1px dashed var(--border);
+      border-radius: var(--radius-md);
+      color: var(--muted);
+      background: #fff;
+    }
+
+    @media (prefers-reduced-motion: reduce){
+      .card{ transition: none; }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>App Launcher</h1>
+    <p>Click a card to flip it.</p>
+  </header>
+
+  <section class="controls" aria-label="Filters">
+    <div class="control" role="group" aria-label="Search apps">
+      <label for="q">Search</label>
+      <input id="q" type="search" placeholder="Name, description, categories…" autocomplete="off" />
+    </div>
+
+    <div class="control" role="group" aria-label="Filter by category">
+      <label for="category">Category</label>
+      <select id="category"></select>
+    </div>
+
+    <button class="btn" id="reset" type="button">Reset</button>
+  </section>
+
+  <main>
+    <div class="grid" id="grid" aria-live="polite"></div>
+    <div class="empty" id="empty" hidden>No apps match your filters.</div>
+  </main>
+
+  <script>
+    // =========================================================
+    // APP DATA
+    //
+    // front.type:
+    // - "image": front.value is an image URL/path
+    // - "color": front.value is a hex/rgb color (e.g. "#4b5563")
+    // =========================================================
+    const APPS = [
+      {
+        name: "QR Code Generator",
+        categories: ["Marketing"],
+        description: "Streamlines prospective student intake, routing, and follow-up tasks.",
+        url: "https://example.com/admissions-intake",
+        status: "Live",
+        front: {
+          type: "color",
+          value: "#8B0303" // slate/gray
+        }
+      },
+      {
+        name: "UTM Generator",
+        categories: ["Events", "Attendance"],
+        description: "QR-based check-in with real-time attendee counts and exports.",
+        url: "https://dottdesign.github.io/UTM-Generator/",
+        status: "Live",
+        front: {
+          type: "color",
+          value: "#FCA400" // slate/gray
+        }
+      },
+      {
+        name: "UTM+QR Code Generator",
+        categories: ["Web", "SEO", "Accessibility"],
+        description: "Automated link checks, metadata validation, and accessibility reminders.",
+        url: "https://example.com/content-qa",
+        status: "Live",
+        front: {
+          type: "color",
+          value: "#242121" // dark gray
+        }
+      }
+    ];
+
+    const grid = document.getElementById("grid");
+    const empty = document.getElementById("empty");
+    const q = document.getElementById("q");
+    const category = document.getElementById("category");
+    const reset = document.getElementById("reset");
+
+    function uniq(arr){ return [...new Set(arr)].sort((a,b)=>a.localeCompare(b)); }
+
+    function escapeHtml(str){
+      return String(str)
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#039;");
+    }
+
+    function getCategories(app){
+      const cats = (app.categories && app.categories.length) ? app.categories : ["Uncategorized"];
+      return cats;
+    }
+
+    function buildCategoryOptions(){
+      const allCats = APPS.flatMap(a => getCategories(a));
+      const cats = ["All", ...uniq(allCats)];
+      category.innerHTML = cats.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("");
+    }
+
+    function matches(app, query, cat){
+      const qn = query.trim().toLowerCase();
+      const cats = getCategories(app);
+
+      const inCategory = (cat === "All") || cats.includes(cat);
+      if (!qn) return inCategory;
+
+      const hay = [
+        app.name,
+        app.description,
+        cats.join(" "),
+        app.status
+      ].filter(Boolean).join(" ").toLowerCase();
+
+      return inCategory && hay.includes(qn);
+    }
+
+    function setCardFlipped(card, flipped){
+      card.dataset.flipped = String(flipped);
+      card.setAttribute("aria-pressed", String(flipped));
+
+      const front = card.querySelector(".front");
+      const back = card.querySelector(".back");
+      if (front && back){
+        front.setAttribute("aria-hidden", String(flipped));
+        back.setAttribute("aria-hidden", String(!flipped));
+      }
+    }
+
+    function wireCardInteractions(){
+      const cards = grid.querySelectorAll(".card");
+
+      cards.forEach(card => {
+        card.addEventListener("click", (e) => {
+          const a = e.target.closest("a");
+          if (a){
+            if (a.dataset.action === "flip"){
+              e.preventDefault();
+              setCardFlipped(card, false);
+            }
+            return;
+          }
+          const flipped = card.dataset.flipped === "true";
+          setCardFlipped(card, !flipped);
+        });
+
+        card.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " "){
+            e.preventDefault();
+            const flipped = card.dataset.flipped === "true";
+            setCardFlipped(card, !flipped);
+          }
+          if (e.key === "Escape"){
+            setCardFlipped(card, false);
+          }
+        });
+      });
+    }
+
+    function renderFrontMedia(app){
+      const front = app.front || { type: "color", value: "#4b5563" };
+
+      if (front.type === "image"){
+        const img = escapeHtml(front.value || "");
+        return `
+          ${img ? `<img class="hero" src="${img}" alt="${escapeHtml(app.name)} preview" loading="lazy" />` : ""}
+          <div class="overlay" aria-hidden="true"></div>
+        `;
+      }
+
+      // color front
+      const color = escapeHtml(front.value || "#4b5563");
+      return `
+        <div style="position:absolute;inset:0;background:${color};"></div>
+        <div class="overlay overlay-strong" aria-hidden="true"></div>
+      `;
+    }
+
+    function render(){
+      const query = q.value;
+      const cat = category.value;
+
+      const filtered = APPS.filter(app => matches(app, query, cat));
+
+      grid.innerHTML = filtered.map((app, idx) => {
+        const id = `card-${idx}-${app.name.replace(/\s+/g,"-").toLowerCase()}`;
+        const status = app.status ? escapeHtml(app.status) : "Live";
+        const cats = getCategories(app);
+
+        // Front shows first category, plus a count if more exist
+        const primaryCat = cats[0];
+        const extraCount = Math.max(0, cats.length - 1);
+        const frontCatLabel = extraCount ? `${primaryCat} +${extraCount}` : primaryCat;
+
+        return `
+          <section class="card-wrap">
+            <div
+              class="card"
+              id="${escapeHtml(id)}"
+              data-flipped="false"
+              role="button"
+              tabindex="0"
+              aria-label="App card for ${escapeHtml(app.name)}. Press Enter to flip."
+              aria-pressed="false"
+            >
+              <div class="face front" aria-hidden="false">
+                <div class="media">
+                  ${renderFrontMedia(app)}
+
+                  <div class="pill-row" aria-hidden="true">
+                    <div class="pill" title="${escapeHtml(cats.join(", "))}">${escapeHtml(frontCatLabel)}</div>
+                    <div class="status" title="${status}">${status}</div>
+                  </div>
+
+                  <div class="front-content">
+                    <h2 class="title">${escapeHtml(app.name)}</h2>
+                    <p class="desc">${escapeHtml(app.description || "")}</p>
+                    <div class="hint">Click or press Enter to view the launch button.</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="face back" aria-hidden="true">
+                <div>
+                  <h2>${escapeHtml(app.name)}</h2>
+                  <p>${escapeHtml(app.description || "")}</p>
+
+                  <div class="meta" aria-label="Categories">
+                    ${cats.map(c => `<span class="chip">${escapeHtml(c)}</span>`).join("")}
+                  </div>
+                </div>
+
+                <div class="actions">
+                  <a class="link-btn" href="#" data-action="flip">Back</a>
+                  <a class="link-btn primary"
+                     href="${escapeHtml(app.url)}"
+                     target="_blank"
+                     rel="noopener noreferrer">
+                    Open App
+                  </a>
+                </div>
+              </div>
+            </div>
+          </section>
+        `;
+      }).join("");
+
+      empty.hidden = filtered.length !== 0;
+      wireCardInteractions();
+    }
+
+    q.addEventListener("input", render);
+    category.addEventListener("change", render);
+    reset.addEventListener("click", () => {
+      q.value = "";
+      category.value = "All";
+      render();
+    });
+
+    buildCategoryOptions();
+    render();
+  </script>
+</body>
+</html>
